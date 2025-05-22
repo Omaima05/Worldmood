@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>WorldMood - Carte des émotions</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2em;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        img {
+            display: block;
+            margin: 1em auto;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+        }
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        li {
+            background: #fff;
+            margin-bottom: 1em;
+            padding: 1em;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .links a {
+            display: inline-block;
+            margin-right: 1em;
+            margin-top: 1em;
+            color: #007bff;
+            text-decoration: none;
+        }
+        .links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌍 WorldMood - Carte des émotions</h1>
+
+    <p>Voici la distribution des émotions détectées dans les articles récents :</p>
+    <img src="{{ url_for('static', filename='plot.png') }}" alt="Graphique des émotions" style="width:80%;">
+
+    <div class="links">
+        <a href="/dash/">📊 Carte dynamique des émotions (Dash)</a>
+        <a href="/stats">📈 Statistiques des émotions (Stats)</a>
+    </div>
+
+    <h2>📰 Articles récents annotés</h2>
+    {% if articles %}
+        <ul>
+        {% for article in articles %}
+            <li>
+                <strong>{{ article.title }}</strong><br>
+                <em>{{ article.source.name if article.source else 'Source inconnue' }}</em><br>
+                🧠 Émotion détectée : <strong>{{ article.emotion }}</strong><br>
+                📅 Publié le : {{ article.publication_date.strftime('%Y-%m-%d') if article.publication_date else 'Date inconnue' }}
+            </li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>😕 Aucun article n'est disponible pour le moment.<br>
+        Réessayez plus tard ou consultez la <a href="/dash/">carte interactive</a>.</p>
+    {% endif %}
+</body>
+</html>
