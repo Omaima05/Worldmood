@@ -40,6 +40,7 @@ except:
 # === OUTILS NLP pour le nettoyage ===
 tokenizer_cleaner = AutoTokenizer.from_pretrained("camembert-base")
 
+
 def clean_text(text):
     text = text.lower()
     text = re.sub(r'[^a-zàâçéèêëîïôûùüÿñæœ\s]', '', text)
@@ -47,10 +48,12 @@ def clean_text(text):
     tokens = [t for t in tokens if t not in stop_words]
     return " ".join(tokens)
 
+
 # === MONGODB ===
 client = MongoClient("mongodb://localhost:27017/")
 db = client["articles_db"]
 collection = db["articles"]
+
 
 # 🔁 Étape unique : convertir "country" -> "pays" si besoin
 def migrate_country_to_pays():
@@ -63,6 +66,7 @@ def migrate_country_to_pays():
     )
     print(f"🛠️ Migration terminée : {result.modified_count} article(s) mis à jour (country ➜ pays)")
 
+
 # === TRADUCTION ===
 def translate_to_english(text, source_lang):
     if not text or source_lang == "en":
@@ -71,6 +75,7 @@ def translate_to_english(text, source_lang):
         return GoogleTranslator(source=source_lang, target='en').translate(text)
     except:
         return text
+
 
 # Récupérer les articles depuis NewsAPI en paginant
 def get_newsapi_articles(country, language, query="", max_pages=5):
@@ -95,6 +100,7 @@ def get_newsapi_articles(country, language, query="", max_pages=5):
             break
     return all_articles
 
+
 def save_articles_to_mongo(articles):
     count = 0
     if not articles:
@@ -106,12 +112,13 @@ def save_articles_to_mongo(articles):
             count += 1
     print(f"{count} article(s) ajouté(s) dans MongoDB.")
 
+
 emotion_model = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", top_k=1)
 
 for doc in collection.find({"emotion": {"$exists": False}}):
     # Texte prioritaire : content > title_en > title_original
     text = doc.get("content") or doc.get("title_en") or doc.get("title_original")
-    
+
     if not text or not isinstance(text, str) or len(text.strip()) < 10:
         print(f"⚠️ Aucun texte exploitable pour {doc.get('_id')}")
         continue
@@ -136,15 +143,18 @@ for doc in collection.find({"emotion": {"$exists": False}}):
     except Exception as e:
         print(f"❌ Erreur pour {doc.get('_id')} → {e}")
 
+
 # === EMOTIONS ===
 def detect_emotion_custom(text):
     if custom_model is None:
         raise ValueError("Le modèle personnalisé n'est pas chargé.")
     return max(custom_model(text[:512]), key=lambda x: x['score'])["label"]
 
+
 def detect_emotion(text):
     result = emotion_pipeline(text[:512])[0]
     return max(result, key=lambda x: x["score"])["label"]
+
 
 def detect(text):
     if USE_CUSTOM_MODEL:
@@ -163,6 +173,7 @@ def detect(text):
         label = sorted_res[0]["label"]
         score = round(sorted_res[0]["score"], 3)
     return label, score
+
 
 def annotate_articles_with_emotions():
     for article in collection.find({"emotion": {"$exists": False}}):
@@ -193,6 +204,7 @@ def annotate_articles_with_emotions():
         )
         print(f"✅ {emotion_label} ({lang} ➜ en | {pays}) - {article['title']}")
 
+
 # === MODEL TRAINING ===
 def train_custom_model(texts, labels, model_name="distilbert-base-uncased"):
     df = pd.DataFrame({"text": texts, "label": labels})
@@ -212,6 +224,7 @@ def train_custom_model(texts, labels, model_name="distilbert-base-uncased"):
     model.save_pretrained("./emotion_model")
     tokenizer.save_pretrained("./emotion_model")
 
+
 # === VISUALISATION ===
 def plot_emotions():
     emotions = [a["emotion"] for a in collection.find({"emotion": {"$exists": True}})]
@@ -224,10 +237,12 @@ def plot_emotions():
     plt.ylabel("Articles")
     plt.show()
 
+
 def show_articles_by_emotion(emotion):
     print(f"\nArticles avec l'émotion : {emotion}")
     for a in collection.find({"emotion": emotion}):
         print(f"• {a['title']} ({a['source']})")
+
 
 # === CONFIGURATION MULTI-THEMES / MULTI-LANGUES ===
 THEMES = ["politique", "Ukraine", "Guerre", "culture", "économie", "Israël"]
@@ -249,11 +264,13 @@ TOPICS_BY_COUNTRY = {
     "Saudi Arabia": ("ar", "بن سلمان OR سياسة OR اقتصاد OR نفط")
 }
 
+
 def run_country_specific_scraping():
     for country, (lang, query) in TOPICS_BY_COUNTRY.items():
         print(f"\n🌍 Récupération des articles pour {country} [{lang}] avec les mots-clés : {query}")
         articles = get_newsapi_articles(country=country, language=lang, query=query, max_pages=5)
         save_articles_to_mongo(articles)
+
 
 def run_general_theme_scraping():
     for theme in THEMES:
@@ -261,6 +278,7 @@ def run_general_theme_scraping():
             print(f"\n📰 Recherche générale : thème '{theme}' en [{lang}]")
             articles = get_newsapi_articles(country="", language=lang, query=theme, max_pages=1)
             save_articles_to_mongo(articles)
+
 
 def get_articles_dataframe():
     cursor = collection.find({"emotion": {"$exists": True}})
@@ -288,11 +306,12 @@ def parse_timestamp(ts):
     except:
         return datetime.now().isoformat()
 
+
 def get_cleaned_articles():
     client = MongoClient("mongodb://localhost:27017/")
     db = client["articles_db"]
     collection = db["articles"]
-    migrate_country_to_pays() # Migration des pays
+    migrate_country_to_pays()  # Migration des pays
 
     cleaned_data = []
     for article in collection.find({"emotion": {"$exists": True, "$ne": None}}):
@@ -311,12 +330,14 @@ def get_cleaned_articles():
         raise ValueError("Aucune donnée nettoyée trouvée dans MongoDB.")
     return cleaned_data
 
+
 def load_emotion_model():
     try:
         return pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", top_k=1)
     except Exception as e:
         print(f"Erreur lors du chargement du modèle d'émotion : {e}")
         return None
+
 
 def analyze_emotions(df, emotion_analyzer):
     df = df.copy()
@@ -329,6 +350,7 @@ def analyze_emotions(df, emotion_analyzer):
             df["emotion"] = "unknown"
     df["nb_articles"] = 1
     return df
+
 
 import plotly.express as px
 
@@ -352,7 +374,9 @@ def get_iso_alpha3(country_name):
         return pycountry.countries.lookup(country_name).alpha_3
     except LookupError:
         return None
-#graphique 1
+
+
+# graphique 1
 def bubble_map(df, selected_theme, selected_emotion, year=None):
     print(f"[DEBUG] Arguments reçus : year={year}, emotion={selected_emotion}, theme={selected_theme}")
 
@@ -361,7 +385,7 @@ def bubble_map(df, selected_theme, selected_emotion, year=None):
         (df["theme"] == selected_theme) &
         (df["emotion"] == selected_emotion) &
         (df["year"] == year)
-    ]
+        ]
 
     if filtered.empty:
         raise ValueError(f"Aucune donnée pour '{selected_theme}' / '{selected_emotion}' en {year}")
@@ -403,12 +427,11 @@ def bubble_map(df, selected_theme, selected_emotion, year=None):
     )
 
     fig.update_layout(
-        margin={"r":0,"t":50,"l":0,"b":0},
+        margin={"r": 0, "t": 50, "l": 0, "b": 0},
         geo=dict(showframe=False, showcoastlines=True)
     )
 
     return fig
-
 
 
 def contour_plot(df, countries, selected_theme, year_range):
@@ -424,6 +447,7 @@ def contour_plot(df, countries, selected_theme, year_range):
     fig.update_layout(title="Évolution des émotions par pays et par année",
                       xaxis_title="Année", yaxis_title="Pays-Émotion")
     return fig
+
 
 # Exemple d'utilisation
 if __name__ == "__main__":
@@ -459,3 +483,4 @@ if __name__ == "__main__":
         fig.show()
     else:
         print("❌ Aucun graphique généré (fig est None)")
+
