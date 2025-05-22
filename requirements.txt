@@ -7,3 +7,4 @@ torch
 nltk
 requests
 deep-translator
+matplotlib
