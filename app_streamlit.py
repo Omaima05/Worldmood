@@ -1,4 +1,4 @@
- import streamlit as st
+import streamlit as st
 import pandas as pd
 import plotly.express as px
 from code_final import get_cleaned_articles, load_emotion_model, analyze_emotions, bubble_map
@@ -12,7 +12,7 @@ collection = db["articles"]
 def main():
     st.title("WorldMood – Analyse et visualisation des émotions")
 
-    # Charger les articles depuis MongoDB
+    # Chargement des articles
     articles = get_cleaned_articles()
     if not articles:
         st.warning("Aucun article disponible dans la base.")
@@ -20,35 +20,32 @@ def main():
 
     df = pd.DataFrame(articles)
 
-    # Nettoyage et préparation des colonnes nécessaires
+    # Conversion timestamp en année
     if "timestamp" in df.columns and "year" not in df.columns:
         df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
         df["year"] = df["timestamp"].dt.year.fillna(0).astype(int)
 
-    # Nettoyage colonne 'theme'
     if "theme" not in df.columns:
         df["theme"] = "Inconnu"
-    else:
-        # Remplacer valeurs manquantes, forcer str
-        df["theme"] = df["theme"].fillna("Inconnu").astype(str)
 
-    # Affichage diagnostic
-    st.write("Types dans df['theme'] :", df["theme"].apply(type).value_counts())
-    st.write("Valeurs uniques dans df['theme'] :", df["theme"].unique())
-
-    # Nettoyage colonne 'emotion'
     if "emotion" not in df.columns or df["emotion"].isnull().all():
         emotion_model = load_emotion_model()
         df = analyze_emotions(df, emotion_model)
-    else:
-        # S'assurer que ce sont bien des strings et pas de valeurs manquantes
-        df["emotion"] = df["emotion"].fillna("neutral").astype(str)
 
-    # Sélections dans la sidebar
-    selected_theme = st.sidebar.selectbox("Choisir un thème", options=df["theme"].unique())
-    selected_emotion = st.sidebar.selectbox("Choisir une émotion", options=df["emotion"].unique())
+    # Construire la liste unique des thèmes (gère listes ou strings)
+    all_themes = set()
+    for item in df["theme"]:
+        if isinstance(item, list):
+            all_themes.update(item)
+        else:
+            all_themes.add(item)
+    all_themes = sorted(all_themes)
 
-    # Slider année
+    # Sélection d'un seul thème
+    selected_theme = st.sidebar.selectbox("Choisir un thème", options=all_themes)
+
+    selected_emotion = st.sidebar.selectbox("Choisir une émotion", options=df["emotion"].dropna().unique())
+
     min_year, max_year = int(df["year"].min()), int(df["year"].max())
     st.write(f"Années disponibles : {min_year} → {max_year}")
 
@@ -58,9 +55,21 @@ def main():
     else:
         selected_year = st.sidebar.slider("Choisir l'année", min_year, max_year, min_year)
 
-    # Affichage de la carte à bulles
+    # Filtrer les articles selon thème (gère les listes)
+    def theme_match(cell):
+        if isinstance(cell, list):
+            return selected_theme in cell
+        else:
+            return cell == selected_theme
+
+    df_filtered = df[df["theme"].apply(theme_match)]
+
+    # Filtrer par émotion et année
+    df_filtered = df_filtered[(df_filtered["emotion"] == selected_emotion) & (df_filtered["year"] == selected_year)]
+
+    # Affichage carte à bulles
     try:
-        fig = bubble_map(df, selected_theme, selected_emotion, selected_year)
+        fig = bubble_map(df_filtered, selected_theme, selected_emotion, selected_year)
         st.plotly_chart(fig, use_container_width=True)
     except Exception as e:
         st.error(f"Erreur lors de l'affichage de la carte : {e}")
@@ -68,12 +77,12 @@ def main():
 if __name__ == "__main__":
     main()
 
-# Partie comparaison des émotions par pays (après main)
+# --- Deuxième graphique : comparaison des émotions par pays ---
 
 # Liste complète des émotions
 emotions = ["joy", "sadness", "anger", "fear", "surprise", "disgust", "neutral"]
 
-# Récupération des pays
+# Récupération des pays disponibles
 pays_list = collection.distinct("pays")
 
 st.title("Comparaison des émotions par pays")
@@ -86,8 +95,11 @@ if len(selected_countries) != 3:
     st.warning("Veuillez sélectionner exactement 3 pays.")
 else:
     data = []
+
     for pays in selected_countries:
-        articles = collection.find({"pays": pays})
+        articles = collection.find({
+            "pays": pays
+        })
 
         counts = {e: 0 for e in emotions}
         for article in articles:
@@ -102,10 +114,10 @@ else:
                 "Nombre d'articles": counts[emotion]
             })
 
-    df_pays = pd.DataFrame(data)
+    df_comp = pd.DataFrame(data)
 
-    fig = px.bar(
-        df_pays,
+    fig2 = px.bar(
+        df_comp,
         x="Pays",
         y="Nombre d'articles",
         color="Emotion",
@@ -123,6 +135,4 @@ else:
         }
     )
 
-    st.plotly_chart(fig, use_container_width=True)
-
-
+    st.plotly_chart(fig2, use_container_width=True)
