@@ -1,0 +1,9 @@
+streamlit
+pandas
+plotly
+pymongo
+transformers
+torch
+nltk
+requests
+deep-translator
