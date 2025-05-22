@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>WorldMood - Statistiques</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+<body>
+    <h1>Distribution des Émotions</h1>
+    <canvas id="emotionChart"></canvas>
+    <script>
+        const ctx = document.getElementById('emotionChart').getContext('2d');
+        const emotionChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ labels|tojson }},
+                datasets: [{
+                    label: 'Nombre d\'articles',
+                    data: {{ values|tojson }},
+                    backgroundColor: 'orange'
+                }]
+            }
+        });
+    </script>
+    <a href="/">Retour aux Articles</a>
+</body>
+</html>
