@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+</body>
+</html>
+from datasets import load_dataset
+
+dataset = load_dataset("go_emotions")
+print(dataset["train"][0])# Afficher un exemple d'article
+
+from datasets import load_dataset
+
+dataset = load_dataset("SemEval")
+print(dataset["train"][0])
+
+import requests
+from bs4 import BeautifulSoup
+
+url = "https://www.lemonde.fr/"
+response = requests.get(url)
+soup = BeautifulSoup(response.text, "html.parser")
+
+# Récupérer les titres des articles
+articles = soup.find_all("h2")  # Exemple, dépend du site
+for article in articles:
+    print(article.text.strip())

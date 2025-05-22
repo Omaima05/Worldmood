@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carte avec Leaflet.js</title>
+    <!-- Inclure le CSS de Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <!-- Optionnel : Ajouter des styles personnalisés -->
+    <style>
+        #map { height: 500px; }
+    </style>
+</head>
+<body>
+
+    <h1>Carte Interactive avec Leaflet.js</h1>
+
+    <!-- Zone où la carte sera affichée -->
+    <div id="map"></div>
+
+    <!-- Inclure le script JavaScript de Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <script>
+        // Créer la carte
+        var map = L.map('map').setView([51.505, -0.09], 13); // Initialiser la carte à Londres
+
+        // Ajouter un fond de carte
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Ajouter un marqueur
+        var marker = L.marker([51.505, -0.09]).addTo(map);
+        marker.bindPopup("<b>Bonjour!</b><br>Ceci est un marqueur.").openPopup();
+    </script>
+
+</body>
+</html>
+
